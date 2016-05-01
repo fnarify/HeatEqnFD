@@ -9,3 +9,6 @@ The executable was compiled using mingw32 on Win7 64 bit.
 
 To compile this program on *nix systems, from line 254 onwards in heat_eqn.c the scanf parameter needs to be changed to the 
 relative format for the compiler. So on C99 compatible compilers it can be changed from %Iu -> %zu.
+
+![Example Dirichlet (alpha=1, nx=100, nt=1000, dt=0.0005)](https://github.com/fnarify/HeatEqnFD/blob/master/exampleDir.png)
+![Example Neumann (alpha=1, nx=100, nt=1000, dt=0.0005)](https://github.com/fnarify/HeatEqnFD/blob/master/exampleNeu.png)
