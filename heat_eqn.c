@@ -257,8 +257,6 @@ int main()
     printf("Enter timestep (positive rational number).\nThe value of the timestep is bounded by |1 - 4 *  dt / dx^2| : ");
     scanf("%lf", &dt);
 
-    printf("%d %Iu %Iu %lf\n", alpha, nx, nt, dt);
-
     if (!strcmp(scheme, "D") || !strcmp(scheme, "d"))
         expheateqn_d(alpha, nx * DEFAULT_SPACE_STEP, nt * DEFAULT_TIME_STEP, dt);
     else if (!strcmp(scheme, "N") || !strcmp(scheme, "n"))
