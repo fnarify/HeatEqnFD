@@ -1,0 +1,6 @@
+CC=gcc
+CFLAGS=-Wall -g
+TARGET=heat_eqn.c
+
+heatmake:
+	$(CC) -o heat_eqn $(CFLAGS) $(TARGET)
