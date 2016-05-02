@@ -4,6 +4,8 @@ set xlabel "time"
 set ylabel "position"
 set zlabel "heat"
 set title "Explicit finite difference heat equation (Dirichlet)"
+set ticslevel 0
+set yrange [0:1]
 set pm3d
 set palette
 splot "outputd" using 1:2:3 with lines

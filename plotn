@@ -3,7 +3,9 @@ set key off
 set xlabel "time"
 set ylabel "position"
 set zlabel "heat"
-set title "implicit finite difference heat equation (Neumann)"
+set title "Implicit finite difference heat equation (Neumann)"
+set ticslevel 0
+set yrange [0:1]
 set pm3d
 set palette
 splot "outputn" using 1:2:3 with lines

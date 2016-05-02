@@ -3,6 +3,9 @@
  * using a finite difference scheme.
  * Currently the only two options are either Dirichlet B.C. explicit or Neumann implicit.
  *
+ * This version differs from the original, by being more focused towards solving the problem exactly,
+ * and making some of the details of the computation even less obvious than before.
+ *
  * The results can sometimes be a little odd, a good choice of values are as such:
  * alpha = 1
  * spatial steps = 10
@@ -88,13 +91,13 @@ void plot(char *outputf, char *script, size_t col, size_t row, int interior, dou
  */
 void expheateqn_d(double alpha, size_t nx, size_t nt, double dt)
 {
-    size_t i, j; 
+    size_t i, j, colsize, rowsize; 
     double *u_app;                 // Solution matrix (COLUMN-MAJOR order).
-    double *upper, *diag, *lower;  // Diagonals of finite difference matrix, as the matrix is tri-diagonal.
-    double *xi;                    // Interior pts.
+    double diag, outdiag;          // Diagonals of finite difference matrix, as the matrix is tri-diagonal.
+                                   // Since the diagonals of each matrix are composed of the same value, we can save storage this way.
     double dx;                     // Spatial step. 
     double bound;                  // To check we have a numerically stable result.
-    double nu;
+    double nu;                     // dt / dx^2
     
     dx = alpha * 1 / (double) (nx + 1);
     if (!dt) {dt = 0.4 * dx * dx;} // CFL condition.
@@ -103,45 +106,33 @@ void expheateqn_d(double alpha, size_t nx, size_t nt, double dt)
     bound = dx * dx / (double) (2 * alpha);
     if (dt > bound) {dt = bound;}
 
-    xi = malloc(sizeof(double) * nx);
-    if (!xi) {memerror(1);}   
-    // Only work with interior points for Dirichlet problem.
-    for (i = 1; i < nx + 1; i++) {xi[i - 1] = i * dx;}
-
-    upper = malloc(sizeof(double) * (nx - 1));
-    diag = malloc(sizeof(double) * nx);
-    lower = malloc(sizeof(double) * (nx - 1));
-    if (!upper || !diag || !lower) {memerror(2);}
-
     // Finite-difference matrix setup for forward difference scheme (FTCS).
     nu = dt / (dx * dx);
-    for (i = 0; i < nx; ) {diag[i++] = 1 - 2 * nu;}
-    for (i = 0; i < nx - 1; i++) {upper[i] = lower[i] = nu;}
+    diag = 1 - 2 * nu;
+    outdiag = nu;
 
-    u_app = calloc(nx * (nt + 1), sizeof(double));
-    if (!u_app) {memerror(3);}
+    // Initial setup for result matrix.
+    colsize = nx; rowsize = nt + 1;
+    u_app = calloc(colsize * rowsize, sizeof(double));
+    if (!u_app) {memerror(1);}
 
     // Apply initial condition to first column.
-    for (i = 0; i < nx; i++) {u_app[i] = initcond(xi[i]);}
+    for (i = 0; i < colsize; i++) {u_app[i] = initcond((i + 1) * dx);}
 
-    free(xi);
-    
     // Compute the value at the next time step by multiplying 
     // the previous time step by the FD matrix.
-    for (i = 0; i < nt; i++)
+    for (i = 0; i < rowsize - 1; i++)
     {
-        u_app[(i + 1) * nx] = diag[0] * u_app[i * nx] + upper[0] * u_app[i * nx + 1];
-        for (j = 1; j < nx - 1; j++)
+        u_app[(i + 1) * colsize] = diag * u_app[i * colsize] + outdiag * u_app[i * colsize + 1];
+        for (j = 1; j < colsize - 1; j++)
         {
-            u_app[(i + 1) * nx + j] = lower[j - 1] * u_app[i * nx + j - 1] + diag[j] * u_app[i * nx + j]
-                                      + upper[j] * u_app[i * nx + j + 1];
+            u_app[(i + 1) * colsize + j] = outdiag * u_app[i * colsize + j - 1] + diag * u_app[i * colsize + j]
+                                      + outdiag * u_app[i * colsize + j + 1];
         }
-        u_app[(i + 1) * nx + j] = lower[j - 1] * u_app[i * nx + j - 1] + diag[j] * u_app[i * nx + j];
+        u_app[(i + 1) * colsize + j] = outdiag * u_app[i * colsize + j - 1] + diag * u_app[i * colsize + j];
     }
 
-    free(upper); free(diag); free(lower);
-
-    plot("outputd", "plotd", nx, nt + 1, 1, dx, dt, u_app);
+    plot("outputd", "plotd", colsize, rowsize, 1, dx, dt, u_app);
 }
 
 /**
@@ -150,14 +141,18 @@ void expheateqn_d(double alpha, size_t nx, size_t nt, double dt)
  */
 void impheateqn_n(double alpha, size_t nx, size_t nt, double dt)
 {
-    size_t i, j; 
+    size_t i, j, colsize, rowsize; 
     double *u_app;                 // Solution matrix (COLUMN-MAJOR order).
-    double *lower, *diag, *upper;  // Diagonals of the tri-diagonal finite-difference matrix.
+    double diag, *lower;           // Diagonals of the tri-diagonal finite-difference matrix.
+                                   // Similar to the explicit scheme, we also store the change given by the B.C.
+                                   // And since the upper diag is the the lower diag flipped.
     double dx;                     // Spatial step.
     double bound;                  // To check we have a numerically stable result.
-    double nu;
+    double nu;                     // dt / dx^2
     double *pivotvals;             // The value to divide each pivot of fd by. 
     double *curcol;                // Current time step of u_app we are working on.
+
+    colsize = nx + 2; rowsize = nt + 1;    
     
     dx = alpha * 1 / (double) (nx + 1);    
     if (!dt) {dt = 0.4 * dx * dx;} // CFL condition.
@@ -166,23 +161,21 @@ void impheateqn_n(double alpha, size_t nx, size_t nt, double dt)
     bound = dx * dx / (double) (2 * alpha);
     if (dt > bound) {dt = bound;}
 
-    // Finite-difference matrix setup for backward difference scheme (BTCS).    
-    lower = malloc(sizeof(double) * (nx + 1));
-    diag = malloc(sizeof(double) * (nx + 2));
-    upper = malloc(sizeof(double) * (nx + 1));
-    if (!lower || ! diag || !upper) {memerror(1);}  
+    // Finite-difference matrix setup for backward difference scheme (BTCS).        
+    lower = malloc(sizeof(double) * (colsize - 1));
+    if (!lower) {memerror(1);}
 
     nu = alpha * dt / (dx * dx);
-    for (i = 0; i < nx + 2; ) {diag[i++] = 1 + 2 * nu;}
-    for (i = 0; i < nx + 1; i++) {upper[i] = lower[i] =-nu;}
+    diag = 1 + 2 * nu;
+    for (i = 0; i < colsize - 2; i++) {lower[i] = -nu;}    
     // Changes to FD matrix given by Neumann BC.
-    lower[nx] = upper[0] = -2 * nu;
+    lower[i] = -2 * nu;
 
-    u_app = calloc((nx + 2) * (nt + 1), sizeof(double));
+    u_app = calloc(colsize * rowsize, sizeof(double));
     if (!u_app) {memerror(2);}
 
     // Apply initial condition.
-    for (i = 0; i < nx + 2; i++) {u_app[i] = initcond(i * dx);}
+    for (i = 0; i < colsize; i++) {u_app[i] = initcond(i * dx);}
 
     /**
      * Elsewise given the system u_m = fd * u_m+1, we solve the system directly.
@@ -191,7 +184,7 @@ void impheateqn_n(double alpha, size_t nx, size_t nt, double dt)
      * Where the matrix is transformed such that it is an upper bi-diagonal matrix with
      * 1's down the main diagonal.
      */
-    if ((nu < 0) && !(1 + 2 * nu)) 
+    if ((nu < 0) && !diag) 
     {
         fprintf(stderr, "choice of dt or dx creates a zero pivot, exiting program\n");
         exit(-1);
@@ -199,43 +192,43 @@ void impheateqn_n(double alpha, size_t nx, size_t nt, double dt)
 
     /* Thomas' algorithm. */
 
-    pivotvals = malloc(sizeof(double) * (nx + 1));
+    pivotvals = malloc(sizeof(double) * (colsize - 1));
     if (!pivotvals) {memerror(3);}   
-    curcol = malloc(sizeof(double) * (nx + 2));
+    curcol = malloc(sizeof(double) * colsize);
     if (!curcol) {memerror(4);}    
 
     // We can calculate the change in the upper diagonal beforehand as it does not depends on the u_m.
-    pivotvals[0] = upper[0] / diag[0];
-    for (i = 1; i < nx + 1; i++)
+    pivotvals[0] = lower[colsize - 2] / diag;
+    for (i = 1; i < colsize - 1; i++)
     {
-        pivotvals[i] = upper[i] / (diag[i] - (lower[i - 1] * pivotvals[i - 1]));
+        pivotvals[i] = lower[colsize - 2 - i] / (diag - (lower[i - 1] * pivotvals[i - 1]));
     }
 
-    for (i = 0; i < nt; i++)
+    for (i = 0; i < rowsize - 1; i++)
     {
-        for (j = 0; j < nx + 2; j++) {curcol[j] = u_app[i * (nx + 2) + j];}
+        for (j = 0; j < colsize; j++) {curcol[j] = u_app[i * colsize + j];}
 
         // Calculate the change by our algorithm to the vector u_m.
-        curcol[0] /= diag[0];            
-        for (j = 1; j < nx + 2; j++)
+        curcol[0] /= diag;            
+        for (j = 1; j < colsize; j++)
         {
-            curcol[j] = (curcol[j] - (lower[j - 1] * curcol[j - 1])) / (diag[j] - (lower[j - 1] * pivotvals[j - 1]));            
+            curcol[j] = (curcol[j] - (lower[j - 1] * curcol[j - 1])) / (diag - (lower[j - 1] * pivotvals[j - 1]));            
         }
 
         // Back substitution.
         j--;
-        u_app[(i + 1) * (nx + 2) + j] = curcol[j];
+        u_app[(i + 1) * colsize + j] = curcol[j];
         while (j-- > 0)
         {
-            u_app[(i + 1) * (nx + 2) + j] = curcol[j];          
-            u_app[(i + 1) * (nx + 2) + j] -= (pivotvals[j] * u_app[(i + 1) * (nx + 2) + j + 1]);
+            u_app[(i + 1) * colsize + j] = curcol[j];          
+            u_app[(i + 1) * colsize + j] -= (pivotvals[j] * u_app[(i + 1) * colsize + j + 1]);
         }
     }
 
-    free(lower); free(diag); free(upper);
+    free(lower);
     free(pivotvals); free(curcol);
 
-    plot("outputn", "plotn", nx + 2, nt + 1, 0, dx, dt, u_app);
+    plot("outputn", "plotn", colsize, rowsize, 0, dx, dt, u_app);
 }
 
 int main()
