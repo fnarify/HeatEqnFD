@@ -1,6 +1,10 @@
 CC=gcc
 CFLAGS=-Wall -g
 TARGET=heat_eqn.c
+OUTPUT=heat_eqn
 
-heatmake:
-	$(CC) -o heat_eqn $(CFLAGS) $(TARGET)
+heat_eqn:
+	$(CC) -o $(OUTPUT) $(CFLAGS) $(TARGET)
+
+clean:
+	rm -f $(OUTPUT)
