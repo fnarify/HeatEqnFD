@@ -1,6 +1,15 @@
 #ifndef __HEAT_EQN_H__
 #define __HEAT_EQN_H__
 
+// To help with portability of the program to multiple compilation environments.
+#if (_WIN32 || __WIN32__)
+    #define PRSIZET "Iu"
+#elif (__STDC__ && __STDC_VERSION__ && (__STDC_VERSION__ >= 199901L))
+    #define PRSIZET "zu"
+#else
+    #define PRSIZET "lu"
+#endif
+
 /**
  * Method for plotting the approximated data (using gnuplot, or whatever plotting software you prefer), 
  * from any of the finite difference methods below.

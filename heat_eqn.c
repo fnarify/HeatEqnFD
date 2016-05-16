@@ -211,6 +211,8 @@ void impheateqn_n(double alpha, size_t nx, size_t nt, double dt)
         pivotvals[i] = upper[i] / (diag[i] - (lower[i - 1] * pivotvals[i - 1]));
     }
 
+    free(upper);
+
     for (i = 0; i < nt; i++)
     {
         for (j = 0; j < nx + 2; j++) {curcol[j] = u_app[i * (nx + 2) + j];}
@@ -232,7 +234,7 @@ void impheateqn_n(double alpha, size_t nx, size_t nt, double dt)
         }
     }
 
-    free(lower); free(diag); free(upper);
+    free(lower); free(diag);
     free(pivotvals); free(curcol);
 
     plot("outputn", "plotn", nx + 2, nt + 1, 0, dx, dt, u_app);
@@ -248,9 +250,9 @@ int main()
     printf("Do you want to solve for Dirichlet (D) or Neumann (N) scheme: ");
     scanf("%s", scheme);
     printf("Enter number of spatial steps (positive integer): ");
-    scanf("%Iu", &nx);
+    scanf("%" PRSIZET, &nx);
     printf("Enter number of timesteps (positive integer): ");
-    scanf("%Iu", &nt);
+    scanf("%" PRSIZET, &nt);
     printf("Enter timestep (positive rational number).\nThe value of the timestep is bounded by |1 - 4 *  dt / dx^2| : ");
     scanf("%lf", &dt);
 
