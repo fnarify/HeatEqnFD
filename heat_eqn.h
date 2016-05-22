@@ -2,9 +2,9 @@
 #define __HEAT_EQN_H__
 
 // To help with portability of the program to multiple compilation environments.
-#if (_WIN32 || __WIN32__)
+#if  (defined _WIN32) ||  (defined __WIN32__)
     #define PRSIZET "Iu"
-#elif (__STDC__ && __STDC_VERSION__ && (__STDC_VERSION__ >= 199901L))
+#elif (defined __STDC__) && (defined __STDC_VERSION__) && (__STDC_VERSION__ >= 199901L))
     #define PRSIZET "zu"
 #else
     #define PRSIZET "lu"
