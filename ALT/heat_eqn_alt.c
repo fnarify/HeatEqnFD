@@ -241,9 +241,9 @@ int main()
     printf("Do you want to solve for Dirichlet (D) or Neumann (N) scheme: ");
     scanf("%s", scheme);
     printf("Enter number of spatial steps (positive integer): ");
-    scanf("%Iu", &nx);
+    scanf("%" PRSIZET, &nx);
     printf("Enter number of timesteps (positive integer): ");
-    scanf("%Iu", &nt);
+    scanf("%" PRSIZET, &nt);
     printf("Enter timestep (positive rational number).\nThe value of the timestep is bounded by |1 - 4 *  dt / dx^2| : ");
     scanf("%lf", &dt);
 
