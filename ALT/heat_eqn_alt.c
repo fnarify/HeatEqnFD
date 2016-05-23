@@ -18,13 +18,13 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <math.h>
 #include <string.h>
+#include <errno.h>
+#include <unistd.h>
 #include "heat_eqn.h"
 
 #define DEFAULT_SPACE_STEP 10 // Default space step size for printing points.
 #define DEFAULT_TIME_STEP  5  // Default time step size for printing.
-#define PLOT_CALL_SIZE 64     // Size of string for gnuplot system call.
 
 /**
  * Initial condition from fourier series:
@@ -36,6 +36,11 @@
  * Memory error from malloc
  */
 #define memerror(s) do {fprintf(stderr, "Not enough memory.\n"); exit(s);} while(0)
+
+/**
+ * Read error on scanf.
+ */
+#define readerror(s) do {fprintf(stderr, "Could not read input,\n"); exit(s);} while(0)
 
 /**
  * Plots a 3d graph using gnuplot, where the data plotted has dimension data[row * col].
@@ -70,12 +75,10 @@ void plot(char *outputf, char *script, size_t col, size_t row, int interior, dou
     fclose(output);
     free(data); // Don't need this data anymore        
 
-    // Requires gnuplot to be on your user PATH variable.
-    // Otherwise, uncomment the line below and add the file path to the bin folder of a gnuplot installation.
-    char call[PLOT_CALL_SIZE];
-    snprintf(call, PLOT_CALL_SIZE, "gnuplot -persistent %s", script);
-    //system("cd YOUR_DIRECTORY_PATH\gnuplot\bin");
-    system(call);
+    errno = 0;
+    // gnuplot should be on your user PATH variable, otherwise replace the first argument with the path to gnuplot/bin.
+    execlp("gnuplot", "gnuplot", "-persistent", script, (char *) 0);
+    if (errno) {fprintf(stderr, "%s", strerror(errno)); exit(-errno);}
 }
 
 /**
@@ -239,13 +242,14 @@ int main()
 
     printf("This program solves the heat equation \nu_t = u_xx with either Dirichlet or Neumann boundary conditions.\n");
     printf("Do you want to solve for Dirichlet (D) or Neumann (N) scheme: ");
-    scanf("%s", scheme);
-    printf("Enter number of spatial steps (positive integer): ");
-    scanf("%Iu", &nx);
-    printf("Enter number of timesteps (positive integer): ");
-    scanf("%Iu", &nt);
-    printf("Enter timestep (positive rational number).\nThe value of the timestep is bounded by |1 - 4 *  dt / dx^2| : ");
-    scanf("%lf", &dt);
+    if (scanf("%1s", scheme) != 1) {readerror(-1);}
+    scheme[1] = '\0';
+    fflush(stdin); printf("Enter number of spatial steps (positive integer): ");
+    if (scanf("%" PRSIZET, &nx) != 1) {readerror(-1);}
+    fflush(stdin); printf("Enter number of timesteps (positive integer): ");
+    if (scanf("%" PRSIZET, &nt) != 1) {readerror(-1);}
+    fflush(stdin); printf("Enter timestep (positive rational number).\nThe value of the timestep is bounded by |1 - 4 *  dt / dx^2| : ");
+    if (scanf("%lf", &dt) != 1) {readerror(-1);}
 
     if (!strcmp(scheme, "D") || !strcmp(scheme, "d"))
         expheateqn_d(1, nx * DEFAULT_SPACE_STEP, nt * DEFAULT_TIME_STEP, dt);
