@@ -4,7 +4,7 @@
 // To help with portability of the program to multiple compilation environments.
 #if  (defined _WIN32) ||  (defined __WIN32__)
     #define PRSIZET "Iu"
-#elif (defined __STDC__) && (defined __STDC_VERSION__) && (__STDC_VERSION__ >= 199901L))
+#elif (defined __STDC__) && (defined __STDC_VERSION__) && (__STDC_VERSION__ >= 199901L)
     #define PRSIZET "zu"
 #else
     #define PRSIZET "lu"
